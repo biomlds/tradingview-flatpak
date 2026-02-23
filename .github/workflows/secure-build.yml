@@ -13,6 +13,8 @@ jobs:
 
     env:
       EXPECTED_TV_FPR: ${{ secrets.TRADINGVIEW_GPG_FINGERPRINT }}
+      # Optional: set to "true" to keep build workspace after job for debugging via artifacts
+      KEEP_BUILD_DIR: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -22,41 +24,54 @@ jobs:
       # -----------------------------------------
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync curl
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            flatpak flatpak-builder ostree \
+            gnupg dpkg-dev wget rsync curl ca-certificates
 
       # -----------------------------------------
       # 1. Verify TradingView GPG fingerprint
       # -----------------------------------------
       - name: Download TradingView key
-        run: wget -O tradingview.gpg https://tvd-packages.tradingview.com/keyring.gpg
+        run: |
+          set -euxo pipefail
+          curl -fsSL -o tradingview.gpg https://tvd-packages.tradingview.com/keyring.gpg
 
       - name: Verify fingerprint
         run: |
+          set -euxo pipefail
           gpg --batch --import tradingview.gpg
-          FPR=$(gpg --show-keys --with-colons tradingview.gpg | grep fpr | head -n1 | cut -d: -f10)
+          FPR=$(gpg --with-colons --show-keys tradingview.gpg | awk -F: '/^fpr:/ {print $10; exit}')
           echo "Fingerprint: $FPR"
+          if [ -z "${EXPECTED_TV_FPR:-}" ]; then
+            echo "ERROR: EXPECTED_TV_FPR (secret TRADINGVIEW_GPG_FINGERPRINT) is not set"; exit 1
+          fi
           if [ "$FPR" != "$EXPECTED_TV_FPR" ]; then
-            echo "Fingerprint mismatch!"
+            echo "Fingerprint mismatch! Expected $EXPECTED_TV_FPR, got $FPR"
             exit 1
           fi
 
       - name: Install verified key
         run: |
-          sudo install -o root -g root -m 644 tradingview.gpg \
+          set -euxo pipefail
+          sudo install -o root -g root -m 0644 tradingview.gpg \
             /usr/share/keyrings/tradingview-desktop-archive-keyring.gpg
 
       # -----------------------------------------
-      # 2. Add official APT repo
+      # 2. Add official APT repo and refresh
       # -----------------------------------------
       - name: Add TradingView repo
         run: |
+          set -euxo pipefail
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/tradingview-desktop-archive-keyring.gpg] \
           https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse" \
-          | sudo tee /etc/apt/sources.list.d/tradingview.list
+          | sudo tee /etc/apt/sources.list.d/tradingview.list >/dev/null
 
       - name: Update apt
-        run: sudo apt update
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
 
       # -----------------------------------------
       # 3. Detect new version
@@ -64,23 +79,27 @@ jobs:
       - name: Get candidate version
         id: version
         run: |
-          VERSION=$(apt-cache policy tradingview | grep Candidate | awk '{print $2}')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          set -euxo pipefail
+          VERSION=$(apt-cache policy tradingview | awk '/Candidate:/ {print $2}')
+          if [ -z "${VERSION:-}" ] || [ "$VERSION" = "(none)" ]; then
+            echo "ERROR: No candidate version found for tradingview"; exit 1
+          fi
+          echo "Latest TradingView version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check version change
         id: check
         run: |
+          set -euxo pipefail
+          CURRENT="none"
           if [ -f VERSION ]; then
             CURRENT=$(cat VERSION)
-          else
-            CURRENT="none"
           fi
-
           if [ "$CURRENT" = "${{ steps.version.outputs.version }}" ]; then
-            echo "update=false" >> $GITHUB_OUTPUT
+            echo "No update needed (current=$CURRENT)"; echo "update=false" >> "$GITHUB_OUTPUT"
           else
             echo "${{ steps.version.outputs.version }}" > VERSION
-            echo "update=true" >> $GITHUB_OUTPUT
+            echo "update=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Stop if no update
@@ -92,9 +111,11 @@ jobs:
       # -----------------------------------------
       - name: Download .deb via apt
         run: |
+          set -euxo pipefail
           apt download tradingview
           mkdir -p flatpak
-          mv tradingview_*.deb flatpak/tradingview.deb
+          # Always rename to a consistent name expected by the manifest
+          mv tradingview_*_amd64.deb flatpak/tradingview.deb
 
       # -----------------------------------------
       # 5. Parse runtime-version from manifest (NO yq)
@@ -102,26 +123,35 @@ jobs:
       - name: Parse runtime version
         id: runtime
         run: |
-          RUNTIME_VERSION=$(grep '^runtime-version:' flatpak/com.tradingview.tradingview.yaml | awk '{print $2}' | tr -d '"')
+          set -euxo pipefail
+          MANIFEST="flatpak/com.tradingview.tradingview.yaml"
+          if ! [ -f "$MANIFEST" ]; then
+            echo "ERROR: Manifest not found at $MANIFEST"; exit 1
+          fi
+          # Greedy match allowing quotes or not, compatible with both YAML styles
+          RUNTIME_VERSION=$(grep -E '^[[:space:]]*runtime-version:' "$MANIFEST" | head -n1 | sed -E 's/^[^:]+:[[:space:]]*"?([^"]+)"?/\1/')
+          if [ -z "${RUNTIME_VERSION:-}" ]; then
+            echo "ERROR: Could not parse runtime-version from $MANIFEST"; exit 1
+          fi
           echo "Runtime version: $RUNTIME_VERSION"
-          echo "runtime_version=$RUNTIME_VERSION" >> $GITHUB_OUTPUT
+          echo "runtime_version=$RUNTIME_VERSION" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------
       # 6. Add Flathub remote (robust)
       # -----------------------------------------
       - name: Add Flathub
         run: |
-          flatpak remote-add --if-not-exists --user flathub \
-              https://dl.flathub.org/repo/flathub.flatpakrepo
-    
-
+          set -euxo pipefail
+          # Use CDN endpoint
+          flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak remotes --user
 
       # -----------------------------------------
-      # 7. Install required SDK and Platform
+      # 7. Install required SDK & Platform (match manifest)
       # -----------------------------------------
       - name: Install Flatpak SDK & Platform
         run: |
+          set -euxo pipefail
           flatpak install -y --user flathub org.freedesktop.Sdk//${{ steps.runtime.outputs.runtime_version }}
           flatpak install -y --user flathub org.freedesktop.Platform//${{ steps.runtime.outputs.runtime_version }}
 
@@ -130,6 +160,10 @@ jobs:
       # -----------------------------------------
       - name: Build Flatpak
         run: |
+          set -euxo pipefail
+          # NOTE: If your manifest uses the Electron BaseApp, ensure it’s declared:
+          # base: org.electronjs.Electron2.BaseApp
+          # base-version: "${{ steps.runtime.outputs.runtime_version }}"
           flatpak-builder \
             --user \
             --install-deps-from=flathub \
@@ -138,23 +172,61 @@ jobs:
             build-dir \
             flatpak/com.tradingview.tradingview.yaml
 
+          # Ensure OSTree summary is up to date (prevents stale metadata on publish)
+          ostree --repo=repo summary -u
+
       # -----------------------------------------
-      # 9. Import signing key
+      # 9. Import signing key & sign the repo
       # -----------------------------------------
       - name: Import GPG signing key
-        run: echo "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
+        if: ${{ secrets.FLATPAK_GPG_KEY != '' }}
+        run: |
+          set -euxo pipefail
+          # Expect armored private key in secret FLATPAK_GPG_KEY
+          printf '%s' "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
 
       - name: Sign repo
-        run: flatpak build-sign repo --gpg-sign=${{ secrets.FLATPAK_GPG_KEY_ID }}
+        if: ${{ secrets.FLATPAK_GPG_KEY_ID != '' }}
+        run: |
+          set -euxo pipefail
+          flatpak build-sign repo --gpg-sign="${{ secrets.FLATPAK_GPG_KEY_ID }}"
 
       # -----------------------------------------
-      # 10. Publish to gh-pages
+      # 10. Publish to gh-pages (worktree, idempotent)
       # -----------------------------------------
       - name: Publish to gh-pages
         run: |
-          git fetch origin gh-pages || true
-          git checkout gh-pages || git checkout --orphan gh-pages
-          rsync -a --delete repo/ .
-          git add .
-          git commit -m "TradingView ${{ steps.version.outputs.version }}" || true
-          git push origin gh-pages
+          set -euxo pipefail
+          git fetch origin
+
+          # Create or reuse a gh-pages worktree (orphan allows first publish)
+          git worktree add --orphan gh-pages gh-pages || true
+          cd gh-pages
+
+          # Clean branch root
+          git rm -rf . >/dev/null 2>&1 || true
+          git clean -fdx
+
+          # Pages should not run Jekyll on our OSTree repo
+          touch .nojekyll
+
+          # Mirror OSTree repo content into the root of gh-pages
+          rsync -a --delete ../repo/ ./
+
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Publish TradingView repo ${{ steps.version.outputs.version }} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
+          git push origin HEAD:gh-pages
+
+          cd ..
+          git worktree remove gh-pages --force || true
+
+      # -----------------------------------------
+      # 11. (Optional) Upload build dir for debugging
+      # -----------------------------------------
+      # - name: Archive build-dir (optional)
+      #   if: env.KEEP_BUILD_DIR == 'true'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-dir
+      #     path: build-dir
