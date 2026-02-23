@@ -1,0 +1,72 @@
+app-id: com.tradingview.TradingView
+runtime: org.freedesktop.Platform
+runtime-version: "25.08"
+sdk: org.freedesktop.Sdk
+command: tradingview
+separate-locales: false
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=xdg-download
+  - --filesystem=xdg-documents
+  - --persist=.config/TradingView
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+
+modules:
+  - name: tradingview
+    buildsystem: simple
+    build-commands:
+      # Installs the extractor/normalizer script and support files
+      - install -Dm755 apply_extra -t ${FLATPAK_DEST}/bin/
+      - install -Dm755 tradingview.sh ${FLATPAK_DEST}/bin/tradingview
+      - install -Dm644 com.tradingview.TradingView.metainfo.xml -t ${FLATPAK_DEST}/share/metainfo
+      - install -Dm644 com.tradingview.TradingView.png -t ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps
+      - install -Dm644 com.tradingview.TradingView.desktop -t ${FLATPAK_DEST}/share/applications
+
+    sources:
+      # Extraction script (reads local tradingview.deb, normalizes layout to /app/opt/tradingview)
+      - type: script
+        commands:
+          # Extract the data payload from the .deb in a format-agnostic way
+          - bsdtar -O -xf tradingview.deb data.* | bsdtar --no-same-owner -xf -
+          # Normalize various upstream layouts to a single directory we control
+          - |
+            if [ -d opt/TradingView ]; then
+              mv opt/TradingView tradingview
+            elif [ -d opt/tradingview ]; then
+              mv opt/tradingview tradingview
+            elif [ -d usr/lib/tradingview ]; then
+              mv usr/lib/tradingview tradingview
+            elif [ -d usr/share/tradingview ]; then
+              mv usr/share/tradingview tradingview
+            else
+              echo "Unknown TradingView package layout. Contents:"; find . -maxdepth 3 -type d
+              exit 1
+            fi
+          # Clean unpack leftovers
+          - rm -rf etc usr opt
+          # Place files where the launcher expects them
+          - install -d /app/opt
+          - mv tradingview /app/opt/tradingview
+        dest-filename: apply_extra
+
+      # Local support files shipped in your repo
+      - type: file
+        path: tradingview.sh
+
+      - type: file
+        path: com.tradingview.TradingView.metainfo.xml
+
+      - type: file
+        path: com.tradingview.TradingView.png
+
+      - type: file
+        path: com.tradingview.TradingView.desktop
+
+      # The local .deb you provide (place it next to this manifest, or adjust the path)
+      - type: file
+        path: tradingview.deb
