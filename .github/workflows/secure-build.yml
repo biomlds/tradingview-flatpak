@@ -12,7 +12,6 @@ jobs:
       contents: write
 
     env:
-      # https://tvd-packages.tradingview.com/keyring.gpg
       EXPECTED_TV_FPR: ${{ secrets.TRADINGVIEW_GPG_FINGERPRINT }}
 
     steps:
@@ -21,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev
+          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget
 
       # -----------------------------------------
       # 1. Verify TradingView GPG fingerprint
@@ -31,6 +30,7 @@ jobs:
 
       - name: Verify fingerprint
         run: |
+          gpg --batch --import tradingview.gpg
           FPR=$(gpg --show-keys --with-colons tradingview.gpg | grep fpr | head -n1 | cut -d: -f10)
           echo "Fingerprint: $FPR"
           if [ "$FPR" != "$EXPECTED_TV_FPR" ]; then
@@ -96,7 +96,8 @@ jobs:
       # 5. Build reproducible Flatpak
       # -----------------------------------------
       - name: Add Flathub
-        run: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        run: |
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: Build Flatpak
         run: |
@@ -109,7 +110,8 @@ jobs:
       # 6. Import your signing key
       # -----------------------------------------
       - name: Import GPG signing key
-        run: echo "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
+        run: |
+          echo "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
 
       - name: Sign repo
         run: flatpak build-sign repo --gpg-sign=${{ secrets.FLATPAK_GPG_KEY_ID }}
