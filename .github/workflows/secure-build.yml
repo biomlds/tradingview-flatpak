@@ -201,23 +201,36 @@ jobs:
           set -euxo pipefail
           git fetch origin
 
-          # Create or reuse a gh-pages worktree (orphan allows first publish)
-          git worktree add --orphan gh-pages gh-pages || true
+          # Ensure no stale worktree dir from previous runs
+          git worktree remove gh-pages --force || true
+          rm -rf gh-pages || true
+
+          # Create or reuse gh-pages worktree
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            # Remote branch exists → attach worktree to remote branch tip
+            git worktree add gh-pages origin/gh-pages
+          else
+            # First publish → create an orphan branch named gh-pages via worktree
+            git worktree add --orphan -b gh-pages gh-pages
+          fi
+
           cd gh-pages
 
           # Clean branch root
           git rm -rf . >/dev/null 2>&1 || true
           git clean -fdx
 
-          # Pages should not run Jekyll on our OSTree repo
+          # Prevent Jekyll from mangling the OSTree repo layout
           touch .nojekyll
 
           # Mirror OSTree repo content into the root of gh-pages
           rsync -a --delete ../repo/ ./
 
+          # Commit and push (idempotent)
           git add -A
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "Publish TradingView repo ${{ steps.version.outputs.version }} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Publish TradingView repo ${{ steps.version.outputs.version }} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
           git push origin HEAD:gh-pages
 
           cd ..
