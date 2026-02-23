@@ -1,0 +1,28 @@
+app-id: com.tradingview.TradingView
+runtime: org.freedesktop.Platform
+runtime-version: "23.08"
+sdk: org.freedesktop.Sdk
+command: tradingview
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=xdg-download
+  - --filesystem=xdg-documents
+  - --persist=.config/TradingView
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+
+modules:
+  - name: tradingview
+    buildsystem: simple
+    build-commands:
+      - ar x tradingview.deb
+      - tar -xf data.tar.*
+      - mv opt/tradingview /app/
+      - install -Dm755 /app/tradingview /app/bin/tradingview
+    sources:
+      - type: file
+        path: tradingview.deb
