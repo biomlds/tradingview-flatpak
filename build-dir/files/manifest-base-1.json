@@ -1,0 +1,561 @@
+{
+  "id" : "org.electronjs.Electron2.BaseApp",
+  "branch" : "25.08",
+  "runtime" : "org.freedesktop.Platform",
+  "runtime-version" : "25.08",
+  "runtime-commit" : "de826b812cbcd018885f245c76a218d31762a1c03bc60f4af897a2681562c899",
+  "sdk" : "org.freedesktop.Sdk",
+  "sdk-commit" : "87329bcc381871a8a04dfbba15c8303321ac729b09bd26919d7b2e0d1120d739",
+  "modules" : [
+    {
+      "name" : "dbus-glib",
+      "config-opts" : [
+        "--disable-static",
+        "--disable-gtk-doc"
+      ],
+      "sources" : [
+        {
+          "url" : "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-0.114.tar.gz",
+          "sha256" : "c09c5c085b2a0e391b8ee7d783a1d63fe444e96717cc1814d61b5e8fc2827a7c",
+          "x-checker-data" : {
+            "type" : "anitya",
+            "project-id" : 1979,
+            "url-template" : "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-$version.tar.gz"
+          },
+          "type" : "archive"
+        }
+      ],
+      "cleanup" : [
+        "*.la",
+        "/bin",
+        "/etc",
+        "/include",
+        "/libexec",
+        "/share/gtk-doc",
+        "/share/man"
+      ]
+    },
+    {
+      "name" : "libappindicator",
+      "rm-configure" : true,
+      "config-opts" : [
+        "--disable-static",
+        "--disable-gtk-doc",
+        "--disable-tests",
+        "--disable-mono-tests",
+        "--enable-introspection=no",
+        "--with-gtk=3"
+      ],
+      "sources" : [
+        {
+          "url" : "https://launchpad.net/libappindicator/12.10/12.10.0/+download/libappindicator-12.10.0.tar.gz",
+          "sha256" : "d5907c1f98084acf28fd19593cb70672caa0ca1cf82d747ba6f4830d4cc3b49f",
+          "type" : "archive"
+        },
+        {
+          "path" : "libappindicator-ftbfs.patch",
+          "type" : "patch"
+        },
+        {
+          "path" : "libappindicator-no-python.patch",
+          "type" : "patch"
+        },
+        {
+          "path" : "libappindicator-fix-crash-from-incorrect-signal-emission.patch",
+          "type" : "patch"
+        },
+        {
+          "path" : "libappindicator-fix-crash-iterating-icon-themes.patch",
+          "type" : "patch"
+        },
+        {
+          "commands" : [
+            "autoreconf -sfi"
+          ],
+          "dest-filename" : "autogen.sh",
+          "type" : "script"
+        }
+      ],
+      "build-options" : {
+        "cflags" : "-Wno-error",
+        "env" : {
+          "GTKDOCIZE" : "true"
+        },
+        "make-args" : [
+          "-j1"
+        ]
+      },
+      "cleanup" : [
+        "/include",
+        "/lib/pkgconfig",
+        "/lib/*.la",
+        "/share/gtk-doc",
+        "/share/gir-1.0"
+      ],
+      "modules" : [
+        {
+          "name" : "intltool",
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz",
+              "sha256" : "67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd",
+              "type" : "archive"
+            },
+            {
+              "path" : "intltool-perl5.26-regex-fixes.patch",
+              "type" : "patch"
+            }
+          ],
+          "cleanup" : [
+            "*"
+          ]
+        },
+        {
+          "name" : "dbus-glib-2",
+          "config-opts" : [
+            "--disable-static",
+            "--disable-gtk-doc"
+          ],
+          "sources" : [
+            {
+              "url" : "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-0.114.tar.gz",
+              "sha256" : "c09c5c085b2a0e391b8ee7d783a1d63fe444e96717cc1814d61b5e8fc2827a7c",
+              "x-checker-data" : {
+                "type" : "anitya",
+                "project-id" : 1979,
+                "url-template" : "https://dbus.freedesktop.org/releases/dbus-glib/dbus-glib-$version.tar.gz"
+              },
+              "type" : "archive"
+            }
+          ],
+          "cleanup" : [
+            "*.la",
+            "/bin",
+            "/etc",
+            "/include",
+            "/libexec",
+            "/share/gtk-doc",
+            "/share/man"
+          ]
+        },
+        {
+          "name" : "libdbusmenu",
+          "config-opts" : [
+            "--disable-static",
+            "--disable-gtk-doc",
+            "--enable-introspection=no",
+            "--disable-vala",
+            "--disable-dumper",
+            "--disable-tests",
+            "--with-gtk=3"
+          ],
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/libdbusmenu/16.04/16.04.0/+download/libdbusmenu-16.04.0.tar.gz",
+              "sha256" : "b9cc4a2acd74509435892823607d966d424bd9ad5d0b00938f27240a1bfa878a",
+              "type" : "archive"
+            }
+          ],
+          "build-options" : {
+            "cflags" : "-Wno-error",
+            "env" : {
+              "HAVE_VALGRIND_FALSE" : "#",
+              "HAVE_VALGRIND_TRUE" : ""
+            }
+          },
+          "cleanup" : [
+            "/include",
+            "/libexec",
+            "/lib/pkgconfig",
+            "/lib/*.la",
+            "/share/doc",
+            "/share/libdbusmenu",
+            "/share/gtk-doc",
+            "/share/gir-1.0"
+          ]
+        },
+        {
+          "name" : "libindicator",
+          "config-opts" : [
+            "--disable-static",
+            "--disable-tests",
+            "--with-gtk=3"
+          ],
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/libindicator/12.10/12.10.1/+download/libindicator-12.10.1.tar.gz",
+              "sha256" : "b2d2e44c10313d5c9cd60db455d520f80b36dc39562df079a3f29495e8f9447f",
+              "type" : "archive"
+            },
+            {
+              "commands" : [
+                "# FTBFS fix",
+                "sed -e '/LIBINDICATOR_LIBS/ s/\\$LIBM/ $LIBM/' -i configure.ac"
+              ],
+              "type" : "shell"
+            },
+            {
+              "commands" : [
+                "autoreconf -sfi"
+              ],
+              "dest-filename" : "autogen.sh",
+              "type" : "script"
+            }
+          ],
+          "build-options" : {
+            "cflags" : "-Wno-error"
+          },
+          "cleanup" : [
+            "/include",
+            "/libexec",
+            "/lib/pkgconfig",
+            "/lib/*.la",
+            "/share/libindicator",
+            "/share/gtk-doc",
+            "/share/gir-1.0"
+          ]
+        }
+      ]
+    },
+    {
+      "name" : "libsecret",
+      "buildsystem" : "meson",
+      "config-opts" : [
+        "-Dmanpage=false",
+        "-Dcrypto=disabled",
+        "-Dvapi=false",
+        "-Dgtk_doc=false",
+        "-Dintrospection=false",
+        "-Dbash_completion=disabled"
+      ],
+      "sources" : [
+        {
+          "url" : "https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz",
+          "sha256" : "6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e",
+          "x-checker-data" : {
+            "type" : "gnome",
+            "name" : "libsecret"
+          },
+          "type" : "archive"
+        }
+      ],
+      "cleanup" : [
+        "/bin",
+        "/include",
+        "/lib/pkgconfig",
+        "/share/man"
+      ]
+    },
+    {
+      "name" : "libunity",
+      "buildsystem" : "autotools",
+      "sources" : [
+        {
+          "url" : "https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/libunity/7.1.4+19.04.20190319-0ubuntu1/libunity_7.1.4+19.04.20190319.orig.tar.gz",
+          "sha256" : "56ecb380d74bf74caba193d9e8ad6b0c85ccf9eeb461bc9731c2b8636e1f1492",
+          "type" : "archive"
+        },
+        {
+          "path" : "patches/libunity/0001-Fix-FTB-with-recent-vala-requiring-non-public-abstra.patch",
+          "type" : "patch"
+        },
+        {
+          "path" : "patches/libunity/libunity-7.1.4-vala-053.patch",
+          "type" : "patch"
+        }
+      ],
+      "build-options" : {
+        "env" : {
+          "ACLOCAL_FLAGS" : "-I /app/share/aclocal"
+        },
+        "prepend-path" : "/usr/lib/sdk/vala/bin",
+        "prepend-ld-library-path" : "/usr/lib/sdk/vala/lib"
+      },
+      "cleanup" : [
+        "/bin",
+        "/share/unity",
+        "/share/glib-2.0",
+        "/share/unity-scopes"
+      ],
+      "modules" : [
+        {
+          "name" : "gnome-common",
+          "buildsystem" : "autotools",
+          "config-opts" : [
+            "--disable-schemas-compile",
+            "--disable-silent-rules",
+            "--disable-static"
+          ],
+          "sources" : [
+            {
+              "url" : "https://download.gnome.org/sources/gnome-common/3.7/gnome-common-3.7.4.tar.xz",
+              "sha256" : "2af2d97010d2a9aeb3b99dd2ce07d1ef023e15a27b412ffe4f067f016ff7117b",
+              "type" : "archive"
+            }
+          ],
+          "cleanup" : [
+            "*"
+          ]
+        },
+        {
+          "name" : "automake",
+          "buildsystem" : "simple",
+          "cleanup" : [
+            "*"
+          ],
+          "build-commands" : [
+            "ln -s /usr/bin/automake ${FLATPAK_DEST}/bin/automake-1.13"
+          ]
+        },
+        {
+          "name" : "intltool-2",
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/intltool/trunk/0.51.0/+download/intltool-0.51.0.tar.gz",
+              "sha256" : "67c74d94196b153b774ab9f89b2fa6c6ba79352407037c8c14d5aeb334e959cd",
+              "type" : "archive"
+            },
+            {
+              "path" : "intltool-perl5.26-regex-fixes.patch",
+              "type" : "patch"
+            }
+          ],
+          "cleanup" : [
+            "*"
+          ]
+        },
+        {
+          "name" : "aclocal",
+          "buildsystem" : "simple",
+          "cleanup" : [
+            "*"
+          ],
+          "build-commands" : [
+            "ln -s /usr/bin/aclocal ${FLATPAK_DEST}/bin/aclocal-1.13"
+          ]
+        },
+        {
+          "name" : "dee",
+          "buildsystem" : "autotools",
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/dee/1.0/1.2.7/+download/dee-1.2.7.tar.gz",
+              "sha256" : "1bf0336ce684aa0f48d6eae2469628c1a9b43695a77443bc31a5790aa673bf8a",
+              "type" : "archive"
+            },
+            {
+              "path" : "patches/dee/dee-1.2.7-deprecated-g_type_class_add_private.patch",
+              "type" : "patch"
+            },
+            {
+              "path" : "patches/dee/dee-1.2.7-fix-g_string_free-usage.patch",
+              "type" : "patch"
+            },
+            {
+              "path" : "patches/dee/dee-1.2.7-gcc6-fixes.patch",
+              "type" : "patch"
+            },
+            {
+              "path" : "patches/dee/fdsdk2508.patch",
+              "type" : "patch"
+            }
+          ],
+          "cleanup" : [
+            "/bin"
+          ]
+        },
+        {
+          "name" : "libdbusmenu-glib",
+          "buildsystem" : "autotools",
+          "config-opts" : [
+            "--disable-static",
+            "--disable-gtk-doc",
+            "--enable-introspection=yes",
+            "--disable-vala",
+            "--disable-dumper",
+            "--disable-tests",
+            "--with-gtk=3"
+          ],
+          "sources" : [
+            {
+              "url" : "https://launchpad.net/libdbusmenu/16.04/16.04.0/+download/libdbusmenu-16.04.0.tar.gz",
+              "sha256" : "b9cc4a2acd74509435892823607d966d424bd9ad5d0b00938f27240a1bfa878a",
+              "type" : "archive"
+            },
+            {
+              "path" : "patches/libdbusmenu-glib/no-Werror.patch",
+              "type" : "patch"
+            }
+          ],
+          "build-options" : {
+            "cflags" : "-Wno-error",
+            "env" : {
+              "HAVE_VALGRIND_FALSE" : "#",
+              "HAVE_VALGRIND_TRUE" : ""
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name" : "gvfs-trash",
+      "buildsystem" : "simple",
+      "sources" : [
+        {
+          "commands" : [
+            "exec rm -r \"$@\""
+          ],
+          "dest-filename" : "gvfs-trash",
+          "type" : "script"
+        }
+      ],
+      "build-commands" : [
+        "install -m755 gvfs-trash /app/bin/gvfs-trash"
+      ]
+    },
+    {
+      "name" : "libgnome-keyring",
+      "rm-configure" : true,
+      "config-opts" : [
+        "--disable-static",
+        "--disable-gtk-doc",
+        "--disable-coverage",
+        "--disable-introspection"
+      ],
+      "sources" : [
+        {
+          "url" : "https://download.gnome.org/sources/libgnome-keyring/3.12/libgnome-keyring-3.12.0.tar.xz",
+          "sha256" : "c4c178fbb05f72acc484d22ddb0568f7532c409b0a13e06513ff54b91e947783",
+          "type" : "archive"
+        },
+        {
+          "commands" : [
+            "autoreconf -vfi"
+          ],
+          "dest-filename" : "autogen.sh",
+          "type" : "script"
+        }
+      ],
+      "build-options" : {
+        "env" : {
+          "GTKDOCIZE" : "true"
+        }
+      }
+    },
+    {
+      "name" : "python3-asarPy",
+      "buildsystem" : "simple",
+      "sources" : [
+        {
+          "url" : "https://files.pythonhosted.org/packages/d7/ab/6c971fb30ffd7f892eada14f28b439f5621fb291bd333e3d67af1e208e49/asarPy-1.0.1.tar.gz",
+          "sha256" : "1f1a9a230942da620bc134eccda7be352f731301ac1269e71e426419e433a0d6",
+          "x-checker-data" : {
+            "type" : "pypi",
+            "name" : "asarPy"
+          },
+          "type" : "file"
+        }
+      ],
+      "build-commands" : [
+        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"asarPy\" --no-build-isolation"
+      ]
+    },
+    {
+      "name" : "patch-desktop-filename",
+      "buildsystem" : "simple",
+      "sources" : [
+        {
+          "path" : "patch-desktop-filename.py",
+          "type" : "file"
+        }
+      ],
+      "build-commands" : [
+        "install -Dm755 patch-desktop-filename.py ${FLATPAK_DEST}/bin/patch-desktop-filename"
+      ]
+    },
+    {
+      "name" : "zypak",
+      "sources" : [
+        {
+          "url" : "https://github.com/refi64/zypak",
+          "commit" : "693a71c5ffa80ec9c9ce2ae03b1ccc493c698e53",
+          "x-checker-data" : {
+            "type" : "git",
+            "tag-pattern" : "^v([\\d.]+)$"
+          },
+          "type" : "git"
+        }
+      ]
+    },
+    {
+      "name" : "libspeechd",
+      "no-make-install" : true,
+      "config-opts" : [
+        "--disable-static",
+        "--with-ibmtts=no",
+        "--with-kali=no",
+        "--with-baratinoo=no",
+        "--with-voxin=no",
+        "--without-flite",
+        "--disable-python"
+      ],
+      "sources" : [
+        {
+          "url" : "https://github.com/brailcom/speechd/releases/download/0.12.1/speech-dispatcher-0.12.1.tar.gz",
+          "sha256" : "b14a5238d287d2dcce4dd42bbd66ca65fa228e7e683708267f7b34036f7ba4b4",
+          "type" : "archive"
+        }
+      ],
+      "cleanup" : [
+        "*.la",
+        "*.a",
+        "/include"
+      ],
+      "post-install" : [
+        "cd ./src/api/c && make install"
+      ],
+      "modules" : [
+        {
+          "name" : "dotconf",
+          "sources" : [
+            {
+              "url" : "https://github.com/williamh/dotconf/archive/refs/tags/v1.4.1.tar.gz",
+              "sha512" : "a6cada8621295b268d4b4fd85bc0c207e78324c9e84754ead2fdf6c1598ec8bdf626f9c24e66063d921c95d73e83b50ab50416a9b4c9a7a631392552ec46f55a",
+              "type" : "archive"
+            },
+            {
+              "commands" : [
+                "autoreconf -fiv"
+              ],
+              "dest-filename" : "autogen.sh",
+              "type" : "script"
+            }
+          ],
+          "cleanup" : [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup" : [
+    "/include",
+    "/lib/pkgconfig",
+    "/man",
+    "/share/aclocal",
+    "/share/devhelp",
+    "/share/gir-1.0",
+    "/share/gtk-doc",
+    "/share/man",
+    "/share/pkgconfig",
+    "/share/vala",
+    "/lib/systemd",
+    "*.la",
+    "*.a"
+  ],
+  "separate-locales" : false,
+  "sdk-extensions" : [
+    "org.freedesktop.Sdk.Extension.vala"
+  ],
+  "source-date-epoch" : 1321009871
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+bsdtar -O -xf tradingview_amd64.deb data.* | bsdtar --no-same-owner -xf -
+mv opt/TradingView tradingview
+rm -rf tradingview_amd64.deb etc usr opt
