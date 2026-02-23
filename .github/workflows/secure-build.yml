@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
@@ -99,9 +99,11 @@ jobs:
         run: |
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
 
-      - name: Install Flatpak SDK
+      - name: Install Latest Flatpak SDK
         run: |
-          flatpak install -y flathub org.freedesktop.Sdk/x86_64/23.08
+          # Install the latest SDK and required runtime
+          flatpak install -y flathub org.freedesktop.Sdk/x86_64/latest
+          flatpak install -y flathub org.freedesktop.Platform/x86_64/latest
 
       - name: Build Flatpak
         run: |
