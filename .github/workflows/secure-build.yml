@@ -15,6 +15,8 @@ jobs:
       EXPECTED_TV_FPR: ${{ secrets.TRADINGVIEW_GPG_FINGERPRINT }}
       # Optional: set to "true" to keep build workspace after job for debugging via artifacts
       KEEP_BUILD_DIR: "false"
+      FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+      FLATPAK_GPG_KEY_ID: ${{ secrets.FLATPAK_GPG_KEY_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -179,14 +181,14 @@ jobs:
       # 9. Import signing key & sign the repo
       # -----------------------------------------
       - name: Import GPG signing key
-        if: ${{ secrets.FLATPAK_GPG_KEY != '' }}
+        if: ${{ env.FLATPAK_GPG_KEY != '' }}
         run: |
           set -euxo pipefail
           # Expect armored private key in secret FLATPAK_GPG_KEY
           printf '%s' "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
 
       - name: Sign repo
-        if: ${{ secrets.FLATPAK_GPG_KEY_ID != '' }}
+        if: ${{ env.FLATPAK_GPG_KEY_ID != '' }}
         run: |
           set -euxo pipefail
           flatpak build-sign repo --gpg-sign="${{ secrets.FLATPAK_GPG_KEY_ID }}"
