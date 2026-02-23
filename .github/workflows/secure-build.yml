@@ -38,13 +38,17 @@ jobs:
       # -----------------------------------------
       - name: Detect latest Freedesktop runtime
         run: |
-          LATEST_VERSION=$(flatpak remote-ls --user flathub --runtime \
-            | awk '$1=="org.freedesktop.Sdk" && $3=="x86_64" {print $2}' \
+          LATEST_VERSION=$(flatpak remote-ls --user flathub \
+            --runtime \
+            --columns=ref \
+            | grep '^org.freedesktop.Sdk/x86_64/' \
+            | cut -d/ -f3 \
             | sort -V \
             | tail -n1)
 
           if [ -z "$LATEST_VERSION" ]; then
             echo "Failed to detect runtime version"
+            flatpak remote-ls --user flathub --runtime
             exit 1
           fi
 
