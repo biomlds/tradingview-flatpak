@@ -18,57 +18,116 @@ jobs:
       - uses: actions/checkout@v4
 
       # -----------------------------------------
-      # Install dependencies
+      # 0. Install system dependencies
       # -----------------------------------------
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync
+          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync curl
 
       # -----------------------------------------
-      # Add Flathub (user remote)
+      # 1. Verify TradingView GPG fingerprint
+      # -----------------------------------------
+      - name: Download TradingView key
+        run: wget -O tradingview.gpg https://tvd-packages.tradingview.com/keyring.gpg
+
+      - name: Verify fingerprint
+        run: |
+          gpg --batch --import tradingview.gpg
+          FPR=$(gpg --show-keys --with-colons tradingview.gpg | grep fpr | head -n1 | cut -d: -f10)
+          echo "Fingerprint: $FPR"
+          if [ "$FPR" != "$EXPECTED_TV_FPR" ]; then
+            echo "Fingerprint mismatch!"
+            exit 1
+          fi
+
+      - name: Install verified key
+        run: |
+          sudo install -o root -g root -m 644 tradingview.gpg \
+            /usr/share/keyrings/tradingview-desktop-archive-keyring.gpg
+
+      # -----------------------------------------
+      # 2. Add official APT repo
+      # -----------------------------------------
+      - name: Add TradingView repo
+        run: |
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/tradingview-desktop-archive-keyring.gpg] \
+          https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse" \
+          | sudo tee /etc/apt/sources.list.d/tradingview.list
+
+      - name: Update apt
+        run: sudo apt update
+
+      # -----------------------------------------
+      # 3. Detect new version
+      # -----------------------------------------
+      - name: Get candidate version
+        id: version
+        run: |
+          VERSION=$(apt-cache policy tradingview | grep Candidate | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check version change
+        id: check
+        run: |
+          if [ -f VERSION ]; then
+            CURRENT=$(cat VERSION)
+          else
+            CURRENT="none"
+          fi
+
+          if [ "$CURRENT" = "${{ steps.version.outputs.version }}" ]; then
+            echo "update=false" >> $GITHUB_OUTPUT
+          else
+            echo "${{ steps.version.outputs.version }}" > VERSION
+            echo "update=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if no update
+        if: steps.check.outputs.update == 'false'
+        run: exit 0
+
+      # -----------------------------------------
+      # 4. Download verified package
+      # -----------------------------------------
+      - name: Download .deb via apt
+        run: |
+          apt download tradingview
+          mkdir -p flatpak
+          mv tradingview_*.deb flatpak/tradingview.deb
+
+      # -----------------------------------------
+      # 5. Parse runtime-version from manifest (NO yq)
+      # -----------------------------------------
+      - name: Parse runtime version
+        id: runtime
+        run: |
+          RUNTIME_VERSION=$(grep '^runtime-version:' flatpak/com.tradingview.TradingView.yml | awk '{print $2}' | tr -d '"')
+          echo "Runtime version: $RUNTIME_VERSION"
+          echo "runtime_version=$RUNTIME_VERSION" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------
+      # 6. Add Flathub remote (robust)
       # -----------------------------------------
       - name: Add Flathub
         run: |
           flatpak remote-add --if-not-exists --user flathub \
-            https://flathub.org/repo/flathub.flatpakrepo
+              https://dl.flathub.org/repo/flathub.flatpakrepo; then
+              break
+    
+
+          flatpak remotes --user
 
       # -----------------------------------------
-      # Detect latest runtime properly
+      # 7. Install required SDK and Platform
       # -----------------------------------------
-      - name: Detect latest Freedesktop runtime
+      - name: Install Flatpak SDK & Platform
         run: |
-          LATEST_VERSION=$(flatpak remote-ls --user flathub \
-            --runtime \
-            --columns=ref \
-            | grep 'org.freedesktop.Sdk/x86_64/' \
-            | cut -d/ -f4 \
-            | sort -V \
-            | tail -n1)
-
-          if [ -z "$LATEST_VERSION" ]; then
-            echo "Failed to detect runtime version"
-            flatpak remote-ls --user flathub --runtime
-            exit 1
-          fi
-
-          echo "Latest runtime version: $LATEST_VERSION"
-
-          flatpak install -y --user flathub org.freedesktop.Sdk//$LATEST_VERSION
-          flatpak install -y --user flathub org.freedesktop.Platform//$LATEST_VERSION
-
-          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
+          flatpak install -y --user flathub org.freedesktop.Sdk//${{ steps.runtime.outputs.runtime_version }}
+          flatpak install -y --user flathub org.freedesktop.Platform//${{ steps.runtime.outputs.runtime_version }}
 
       # -----------------------------------------
-      # Update manifest runtime-version
-      # -----------------------------------------
-      - name: Update manifest runtime-version
-        run: |
-          sed -i "s/runtime-version:.*/runtime-version: \"$LATEST_VERSION\"/" \
-            flatpak/com.tradingview.TradingView.yml
-
-      # -----------------------------------------
-      # Build Flatpak
+      # 8. Build Flatpak
       # -----------------------------------------
       - name: Build Flatpak
         run: |
@@ -81,7 +140,7 @@ jobs:
             flatpak/com.tradingview.TradingView.yml
 
       # -----------------------------------------
-      # Import signing key
+      # 9. Import signing key
       # -----------------------------------------
       - name: Import GPG signing key
         run: echo "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
@@ -90,7 +149,7 @@ jobs:
         run: flatpak build-sign repo --gpg-sign=${{ secrets.FLATPAK_GPG_KEY_ID }}
 
       # -----------------------------------------
-      # Publish to gh-pages
+      # 10. Publish to gh-pages
       # -----------------------------------------
       - name: Publish to gh-pages
         run: |
@@ -98,5 +157,5 @@ jobs:
           git checkout gh-pages || git checkout --orphan gh-pages
           rsync -a --delete repo/ .
           git add .
-          git commit -m "Update Flatpak build" || true
+          git commit -m "TradingView ${{ steps.version.outputs.version }}" || true
           git push origin gh-pages
