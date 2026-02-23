@@ -1,3 +1,6 @@
 keyring.gpg
+.flatpak-builder
+builddir
+repo
 .env
 helpers/*

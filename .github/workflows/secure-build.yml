@@ -102,7 +102,7 @@ jobs:
       - name: Parse runtime version
         id: runtime
         run: |
-          RUNTIME_VERSION=$(grep '^runtime-version:' flatpak/com.tradingview.TradingView.yml | awk '{print $2}' | tr -d '"')
+          RUNTIME_VERSION=$(grep '^runtime-version:' flatpak/com.tradingview.tradingview.yaml | awk '{print $2}' | tr -d '"')
           echo "Runtime version: $RUNTIME_VERSION"
           echo "runtime_version=$RUNTIME_VERSION" >> $GITHUB_OUTPUT
 
@@ -136,7 +136,7 @@ jobs:
             --force-clean \
             --repo=repo \
             build-dir \
-            flatpak/com.tradingview.TradingView.yml
+            flatpak/com.tradingview.tradingview.yaml
 
       # -----------------------------------------
       # 9. Import signing key
