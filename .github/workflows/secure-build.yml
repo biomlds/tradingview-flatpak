@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync yq
+          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync
 
       # -----------------------------------------
       # 1. Verify TradingView GPG fingerprint
@@ -54,6 +54,7 @@ jobs:
           echo "deb [arch=amd64 signed-by=/usr/share/keyrings/tradingview-desktop-archive-keyring.gpg] \
           https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse" \
           | sudo tee /etc/apt/sources.list.d/tradingview.list
+
       - name: Update apt
         run: sudo apt update
 
@@ -74,11 +75,13 @@ jobs:
           else
             CURRENT="none"
           fi
+
           if [ "$CURRENT" = "${{ steps.version.outputs.version }}" ]; then
             echo "update=false" >> $GITHUB_OUTPUT
           else
             echo "${{ steps.version.outputs.version }}" > VERSION
             echo "update=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Stop if no update
         if: steps.check.outputs.update == 'false'
@@ -94,35 +97,39 @@ jobs:
           mv tradingview_*.deb flatpak/tradingview.deb
 
       # -----------------------------------------
-      # 5. Add Flathub user remote
+      # 5. Add Flathub (user remote)
       # -----------------------------------------
       - name: Add Flathub
         run: |
-          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --if-not-exists --user flathub \
+            https://flathub.org/repo/flathub.flatpakrepo
 
       # -----------------------------------------
-      # 6. Install latest SDK & Platform
+      # 6. Detect latest SDK & Platform
       # -----------------------------------------
-      - name: Install latest Flathub SDK & Platform
+      - name: Detect latest runtime
         run: |
-          LATEST_SDK=$(flatpak remote-info --show-sdk flathub org.freedesktop.Sdk/x86_64 \
-            | grep -Eo '[0-9]{2}\.[0-9]{2}' | sort -V | tail -n1)
-          LATEST_PLATFORM=$(flatpak remote-info --show-sdk flathub org.freedesktop.Platform/x86_64 \
-            | grep -Eo '[0-9]{2}\.[0-9]{2}' | sort -V | tail -n1)
-          echo "Latest SDK: $LATEST_SDK"
-          echo "Latest Platform: $LATEST_PLATFORM"
-          flatpak install -y --user flathub org.freedesktop.Sdk//$LATEST_SDK
-          flatpak install -y --user flathub org.freedesktop.Platform//$LATEST_PLATFORM
-          echo "LATEST_SDK=$LATEST_SDK" >> $GITHUB_ENV
-          echo "LATEST_PLATFORM=$LATEST_PLATFORM" >> $GITHUB_ENV
+          LATEST_VERSION=$(flatpak remote-ls --user flathub \
+            | grep org.freedesktop.Sdk \
+            | grep x86_64 \
+            | awk '{print $2}' \
+            | sort -V \
+            | tail -n1)
+
+          echo "Latest runtime version: $LATEST_VERSION"
+
+          flatpak install -y --user flathub org.freedesktop.Sdk//$LATEST_VERSION
+          flatpak install -y --user flathub org.freedesktop.Platform//$LATEST_VERSION
+
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_ENV
 
       # -----------------------------------------
-      # 7. Update manifest
+      # 7. Update manifest via sed (NO yq)
       # -----------------------------------------
-      - name: Update manifest with latest SDK & runtime
+      - name: Update manifest runtime-version
         run: |
-          yq e -i '.runtime-version = strenv(LATEST_PLATFORM)' flatpak/com.tradingview.TradingView.yml
-          yq e -i '.sdk = strenv(LATEST_SDK)' flatpak/com.tradingview.TradingView.yml
+          sed -i "s/runtime-version:.*/runtime-version: \"$LATEST_VERSION\"/" \
+            flatpak/com.tradingview.TradingView.yml
 
       # -----------------------------------------
       # 8. Build Flatpak
