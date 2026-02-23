@@ -18,12 +18,12 @@ jobs:
       - uses: actions/checkout@v4
 
       # -----------------------------------------
-      # 0. Install dependencies
+      # 0. Install system dependencies
       # -----------------------------------------
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync yq
+          sudo apt install -y flatpak flatpak-builder gnupg dpkg-dev wget rsync
 
       # -----------------------------------------
       # 1. Verify TradingView GPG fingerprint
@@ -95,40 +95,28 @@ jobs:
           mv tradingview_*.deb flatpak/tradingview.deb
 
       # -----------------------------------------
-      # 5. Add Flathub remote
+      # 5. Read runtime version from manifest
+      # -----------------------------------------
+      - name: Parse runtime version
+        id: runtime
+        run: |
+          RUNTIME_VERSION=$(yq e '.runtime-version' flatpak/com.tradingview.TradingView.yml)
+          echo "runtime_version=$RUNTIME_VERSION" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------
+      # 6. Add Flathub remote
       # -----------------------------------------
       - name: Add Flathub
         run: |
           flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
 
       # -----------------------------------------
-      # 6. Install latest SDK and Platform
+      # 7. Install required SDK and Platform
       # -----------------------------------------
-      - name: Install latest Flathub SDK and Platform
+      - name: Install Flatpak SDK & Platform
         run: |
-          # List available SDKs and pick the latest stable 64-bit
-          LATEST_SDK=$(flatpak remote-info --show-sdk flathub org.freedesktop.Sdk/x86_64 \
-            | grep -Eo '[0-9]{2}\.[0-9]{2}' | sort -V | tail -n1)
-          LATEST_PLATFORM=$(flatpak remote-info --show-sdk flathub org.freedesktop.Platform/x86_64 \
-            | grep -Eo '[0-9]{2}\.[0-9]{2}' | sort -V | tail -n1)
-
-          echo "Latest SDK: $LATEST_SDK"
-          echo "Latest Platform: $LATEST_PLATFORM"
-
-          # Install them
-          flatpak install -y flathub org.freedesktop.Sdk//$LATEST_SDK
-          flatpak install -y flathub org.freedesktop.Platform//$LATEST_PLATFORM
-
-          # Export variables for next step
-          echo "LATEST_SDK=$LATEST_SDK" >> $GITHUB_ENV
-          echo "LATEST_PLATFORM=$LATEST_PLATFORM" >> $GITHUB_ENV
-
-      # -----------------------------------------
-      # 7. Update manifest with latest runtime
-      # -----------------------------------------
-      - name: Update runtime-version in manifest
-        run: |
-          yq e -i '.runtime-version = strenv(LATEST_PLATFORM)' flatpak/com.tradingview.TradingView.yml
+          flatpak install -y flathub org.freedesktop.Sdk//${{ steps.runtime.outputs.runtime_version }}
+          flatpak install -y flathub org.freedesktop.Platform//${{ steps.runtime.outputs.runtime_version }}
 
       # -----------------------------------------
       # 8. Build reproducible Flatpak
