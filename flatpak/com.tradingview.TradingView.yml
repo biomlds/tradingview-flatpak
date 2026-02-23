@@ -59,13 +59,13 @@ modules:
         path: tradingview.sh
 
       - type: file
-        path: com.tradingview.TradingView.metainfo.xml
+        path: com.tradingview.tradingview.metainfo.xml
 
       - type: file
-        path: com.tradingview.TradingView.png
+        path: com.tradingview.tradingview.png
 
       - type: file
-        path: com.tradingview.TradingView.desktop
+        path: com.tradingview.tradingview.desktop
 
       # The local .deb you provide (place it next to this manifest, or adjust the path)
       - type: file
