@@ -112,8 +112,7 @@ jobs:
       - name: Add Flathub
         run: |
           flatpak remote-add --if-not-exists --user flathub \
-              https://dl.flathub.org/repo/flathub.flatpakrepo; then
-              break
+              https://dl.flathub.org/repo/flathub.flatpakrepo
     
 
           flatpak remotes --user
