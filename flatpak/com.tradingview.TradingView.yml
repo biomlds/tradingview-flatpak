@@ -25,4 +25,4 @@ modules:
       - install -Dm755 /app/tradingview /app/bin/tradingview
     sources:
       - type: file
-        path: tradingview.deb
+        path: flatpak/tradingview.deb
