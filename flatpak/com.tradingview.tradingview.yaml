@@ -7,11 +7,7 @@ base-version: '25.08'
 separate-locales: false
 command: tradingview
 
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.appstream-glib
-
-build-options:
-  append-path: /usr/lib/sdk/appstream-glib/bin
+appstream-compose: false
 
 finish-args:
   - --share=ipc
