@@ -199,53 +199,50 @@ jobs:
       - name: Publish to gh-pages (via worktree)
         run: |
           set -euxo pipefail
-          # Ensure we use HTTPS auth from Actions token
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch origin
 
-          # Create a clean worktree directory for gh-pages
           PUBLISH_DIR="_site"
-
-          # If worktree directory exists from previous run, remove it to avoid conflicts
           rm -rf "$PUBLISH_DIR"
 
-          # Determine if gh-pages exists on remote
           if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            # Create a worktree checked out at gh-pages (tracking remote)
             git worktree add --track -B gh-pages "$PUBLISH_DIR" origin/gh-pages
           else
-            # Create a new orphan gh-pages branch worktree
             git worktree add -B gh-pages "$PUBLISH_DIR"
-            # Ensure an empty initial state
             (cd "$PUBLISH_DIR" && rm -rf ./* .gitignore 2>/dev/null || true)
           fi
 
-          # Verify the build repo exists
           if [ ! -d "repo" ]; then
             echo "ERROR: The build 'repo' directory does not exist in the workspace."
             exit 1
           fi
 
-          # Prepare the publish directory content
-          rsync -a --delete repo/ "$PUBLISH_DIR"/
+          # ✅ Protect the worktree’s .git from deletion
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.git/**' \
+            --exclude '.git*' \
+            repo/ "$PUBLISH_DIR"/
+
           touch "$PUBLISH_DIR"/.nojekyll
 
-          # Commit and push from within the worktree
           cd "$PUBLISH_DIR"
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Publish TradingView repo ${GITHUB_SHA::7} ($(
-                date -u +%Y-%m-%dT%H:%M:%SZ
-              ))" || echo "No changes to commit"
+              commit -m "Publish TradingView repo ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
 
-          # Push (force is OK for published artifacts)
           echo "Warning: Pushing changes with force. Ensure this is intentional as it may overwrite remote changes."
           git push --force origin gh-pages
 
-          # Clean up the worktree entry (optional; the runner is ephemeral anyway)
+          # ✅ Safely remove the worktree only if its .git metadata is present
           cd "$GITHUB_WORKSPACE"
-          git worktree remove -f "$PUBLISH_DIR"
+          if [ -e "$PUBLISH_DIR/.git" ]; then
+            git worktree remove -f "$PUBLISH_DIR"
+          else
+            echo "Worktree metadata missing; skipping removal (runner is ephemeral anyway)."
+            rm -rf "$PUBLISH_DIR" || true
+          fi
 
       # -----------------------------------------
       # 11. (Optional) Upload build dir for debugging
