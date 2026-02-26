@@ -200,21 +200,35 @@ jobs:
         run: |
           set -euxo pipefail
           git fetch origin
-          git checkout gh-pages || git checkout --orphan gh-pages
-          git ls-remote --exit-code --heads origin gh-pages && \
-          git reset --hard origin/gh-pages || true
           
+          # Check if the gh-pages branch exists and switch to it
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            git checkout gh-pages
+            git reset --hard origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+          fi
+      
           # Clean up the workspace
           git rm -rf . >/dev/null 2>&1 || true
           git clean -fdx
           touch .nojekyll
+      
+          # Ensure repo directory exists; if not, exit with error
+          if [ ! -d "../repo" ]; then
+            echo "ERROR: The repo directory does not exist."
+            exit 1
+          fi
+      
+          # Use rsync to sync the content from repo directory
           rsync -a --delete ../repo/ ./
-          
+      
+          # Stage and commit changes
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Publish TradingView repo ${{ steps.version.outputs.version }} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
-
+      
           # Push with force, but provide a warning message
           echo "Warning: Pushing changes with force. Ensure this is intentional as it may overwrite remote changes."
           git push --force origin gh-pages
