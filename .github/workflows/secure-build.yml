@@ -196,42 +196,56 @@ jobs:
       # -----------------------------------------
       # 10. Publish to gh-pages (worktree, idempotent)
       # -----------------------------------------
-      - name: Publish to gh-pages
+      - name: Publish to gh-pages (via worktree)
         run: |
           set -euxo pipefail
+          # Ensure we use HTTPS auth from Actions token
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch origin
-          
-          # Check if the gh-pages branch exists and switch to it
-          if git ls-remote --exit-code --heads origin gh-pages; then
-            git checkout gh-pages
-            git reset --hard origin/gh-pages
+
+          # Create a clean worktree directory for gh-pages
+          PUBLISH_DIR="_site"
+
+          # If worktree directory exists from previous run, remove it to avoid conflicts
+          rm -rf "$PUBLISH_DIR"
+
+          # Determine if gh-pages exists on remote
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            # Create a worktree checked out at gh-pages (tracking remote)
+            git worktree add --track -B gh-pages "$PUBLISH_DIR" origin/gh-pages
           else
-            git checkout --orphan gh-pages
+            # Create a new orphan gh-pages branch worktree
+            git worktree add -B gh-pages "$PUBLISH_DIR"
+            # Ensure an empty initial state
+            (cd "$PUBLISH_DIR" && rm -rf ./* .gitignore 2>/dev/null || true)
           fi
-      
-          # Clean up the workspace
-          git rm -rf . >/dev/null 2>&1 || true
-          git clean -fdx
-          touch .nojekyll
-      
-          # Ensure repo directory exists; if not, exit with error
-          if [ ! -d "../repo" ]; then
-            echo "ERROR: The repo directory does not exist."
+
+          # Verify the build repo exists
+          if [ ! -d "repo" ]; then
+            echo "ERROR: The build 'repo' directory does not exist in the workspace."
             exit 1
           fi
-      
-          # Use rsync to sync the content from repo directory
-          rsync -a --delete ../repo/ ./
-      
-          # Stage and commit changes
+
+          # Prepare the publish directory content
+          rsync -a --delete repo/ "$PUBLISH_DIR"/
+          touch "$PUBLISH_DIR"/.nojekyll
+
+          # Commit and push from within the worktree
+          cd "$PUBLISH_DIR"
           git add -A
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Publish TradingView repo ${{ steps.version.outputs.version }} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
-      
-          # Push with force, but provide a warning message
+              commit -m "Publish TradingView repo ${GITHUB_SHA::7} ($(
+                date -u +%Y-%m-%dT%H:%M:%SZ
+              ))" || echo "No changes to commit"
+
+          # Push (force is OK for published artifacts)
           echo "Warning: Pushing changes with force. Ensure this is intentional as it may overwrite remote changes."
           git push --force origin gh-pages
+
+          # Clean up the worktree entry (optional; the runner is ephemeral anyway)
+          cd "$GITHUB_WORKSPACE"
+          git worktree remove -f "$PUBLISH_DIR"
 
       # -----------------------------------------
       # 11. (Optional) Upload build dir for debugging
