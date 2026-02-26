@@ -1,5 +1,0 @@
-[Runtime]
-name=com.tradingview.tradingview.Debug
-
-[ExtensionOf]
-ref=app/com.tradingview.tradingview/x86_64/master
