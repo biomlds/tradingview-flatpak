@@ -12,4 +12,4 @@ setup_ime_env() {
 
 setup_ime_env
 
-exec zypak-wrapper.sh /app/extra/tradingview/tradingview "$@"
+exec zypak-wrapper.sh /app/tradingview/tradingview "$@"
