@@ -23,44 +23,24 @@ modules:
     buildsystem: simple
 
     build-commands:
-      # Extract deb correctly (deb = ar archive)
       - ar x tradingview.deb
-
-      # Extract payload
       - bsdtar -xf data.tar.xz
-
-      # Install into /app
       - mv opt/TradingView $FLATPAK_DEST/tradingview
-
-      # Cleanup build artifacts
       - rm -rf control.tar.* data.tar.* debian-binary opt
 
-      # Install launcher
-      - install -Dm755 tradingview.sh \
-          $FLATPAK_DEST/bin/tradingview
-
-      # Desktop integration
-      - install -Dm644 com.tradingview.tradingview.metainfo.xml \
-          $FLATPAK_DEST/share/metainfo/com.tradingview.tradingview.metainfo.xml
-
-      - install -Dm644 com.tradingview.tradingview.png \
-          $FLATPAK_DEST/share/icons/hicolor/256x256/apps/com.tradingview.tradingview.png
-
-      - install -Dm644 com.tradingview.tradingview.desktop \
-          $FLATPAK_DEST/share/applications/com.tradingview.tradingview.desktop
+      - install -Dm755 tradingview.sh $FLATPAK_DEST/bin/tradingview
+      - install -Dm644 com.tradingview.tradingview.metainfo.xml $FLATPAK_DEST/share/metainfo/com.tradingview.tradingview.metainfo.xml
+      - install -Dm644 com.tradingview.tradingview.png $FLATPAK_DEST/share/icons/hicolor/256x256/apps/com.tradingview.tradingview.png
+      - install -Dm644 com.tradingview.tradingview.desktop $FLATPAK_DEST/share/applications/com.tradingview.tradingview.desktop
 
     sources:
       - type: file
         path: tradingview.deb
-
       - type: file
         path: tradingview.sh
-
       - type: file
         path: com.tradingview.tradingview.metainfo.xml
-
       - type: file
         path: com.tradingview.tradingview.png
-
       - type: file
         path: com.tradingview.tradingview.desktop
