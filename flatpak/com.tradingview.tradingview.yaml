@@ -1,45 +1,54 @@
-app-id: com.tradingview.tradingview
+id: com.tradingview.tradingview
 runtime: org.freedesktop.Platform
-runtime-version: "25.08"
+runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
-base-version: "25.08"
+base-version: '25.08'
 
-appstream-compose: false
-
+separate-locales: false
 command: tradingview
 
+# Prevent CI failure due to missing appstream-compose
+# appstream-compose: false
+
 finish-args:
-  - --share=network
   - --share=ipc
-  - --socket=x11
-  - --socket=wayland
+  - --share=network
   - --socket=pulseaudio
-  - --device=dri
-  - --filesystem=home
-  - --talk-name=org.freedesktop.Notifications
-  - --env=ELECTRON_TRASH=gio
+  - --device=all
+  - --filesystem=xdg-download:ro
+  - --socket=wayland
+  - --socket=fallback-x11
 
 modules:
   - name: tradingview
     buildsystem: simple
     build-commands:
-      - ar x tradingview.deb
-      - bsdtar -xf data.tar.xz
-      - mv opt/TradingView $FLATPAK_DEST/extra/tradingview
-      - rm -rf control.tar.* data.tar.* debian-binary opt
+      - install -Dm755 apply_extra -t $FLATPAK_DEST/bin/
       - install -Dm755 tradingview.sh $FLATPAK_DEST/bin/tradingview
-      - install -Dm644 com.tradingview.tradingview.metainfo.xml $FLATPAK_DEST/share/metainfo/com.tradingview.tradingview.metainfo.xml
-      - install -Dm644 com.tradingview.tradingview.png $FLATPAK_DEST/share/icons/hicolor/256x256/apps/com.tradingview.tradingview.png
-      - install -Dm644 com.tradingview.tradingview.desktop $FLATPAK_DEST/share/applications/com.tradingview.tradingview.desktop
+      - install -Dm644 com.tradingview.tradingview.metainfo.xml -t $FLATPAK_DEST/share/metainfo
+      - install -Dm644 com.tradingview.tradingview.png -t $FLATPAK_DEST/share/icons/hicolor/256x256/apps
+      - install -Dm644 com.tradingview.tradingview.desktop -t $FLATPAK_DEST/share/applications
     sources:
-      - type: file
-        path: tradingview.deb
+      - type: script
+        commands:
+          # Extract the official .deb downloaded in CI
+          - bsdtar -O -xf tradingview.deb data.* | bsdtar --no-same-owner -xf -
+          - mv opt/TradingView tradingview
+          - rm -rf tradingview.deb etc usr opt
+        dest-filename: apply_extra
+
       - type: file
         path: tradingview.sh
-      - type: file
-        path: com.tradingview.tradingview.desktop
+
       - type: file
         path: com.tradingview.tradingview.metainfo.xml
+
       - type: file
         path: com.tradingview.tradingview.png
+
+      - type: file
+        path: com.tradingview.tradingview.desktop
+
+      - type: file
+        path: tradingview.deb

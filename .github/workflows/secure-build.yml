@@ -22,74 +22,67 @@ jobs:
       # Install dependencies
       - name: Install dependencies
         run: |
-          set -euxo pipefail
           sudo apt-get update
-          sudo apt-get install -y \
-            flatpak flatpak-builder ostree \
-            gnupg dpkg-dev wget rsync curl ca-certificates
+          sudo apt-get install -y flatpak flatpak-builder ostree gnupg dpkg-dev wget rsync curl ca-certificates
 
-      # Download & verify TradingView GPG key
-      - name: Download TradingView key
+      # Verify TradingView GPG key
+      - name: Download TradingView GPG
         run: curl -fsSL -o tradingview.gpg https://tvd-packages.tradingview.com/keyring.gpg
 
-      - name: Verify fingerprint
+      - name: Verify GPG fingerprint
         run: |
-          set -euxo pipefail
           gpg --batch --import tradingview.gpg
           FPR=$(gpg --with-colons --show-keys tradingview.gpg | awk -F: '/^fpr:/ {print $10; exit}')
-          echo "Fingerprint: $FPR"
-          test "$FPR" = "$EXPECTED_TV_FPR"
-
-      - name: Install verified key
-        run: |
-          sudo install -m 0644 tradingview.gpg \
+          if [ "$FPR" != "$EXPECTED_TV_FPR" ]; then
+            echo "Fingerprint mismatch! Expected $EXPECTED_TV_FPR, got $FPR"
+            exit 1
+          fi
+          sudo install -o root -g root -m 0644 tradingview.gpg \
             /usr/share/keyrings/tradingview-desktop-archive-keyring.gpg
 
-      # Add official repo
-      - name: Add TradingView repo
+      # Add official APT repo and update
+      - name: Add TradingView APT repo
         run: |
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/tradingview-desktop-archive-keyring.gpg] \
-          https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse" \
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/tradingview-desktop-archive-keyring.gpg] https://tvd-packages.tradingview.com/ubuntu/stable jammy multiverse" \
           | sudo tee /etc/apt/sources.list.d/tradingview.list
-
-      - name: Update apt
-        run: sudo apt-get update
+          sudo apt-get update
 
       # Get latest version
-      - name: Get candidate version
+      - name: Get latest TradingView version
         id: version
         run: |
           VERSION=$(apt-cache policy tradingview | awk '/Candidate:/ {print $2}')
+          if [ -z "$VERSION" ] || [ "$VERSION" = "(none)" ]; then exit 1; fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # Download verified package
-      - name: Download .deb
+      # Download official .deb
+      - name: Download TradingView .deb
         run: |
           apt download tradingview
           mkdir -p flatpak
           mv tradingview_*_amd64.deb flatpak/tradingview.deb
-          ls -lh flatpak/tradingview.deb
 
       # Add Flathub
       - name: Add Flathub
-        run: flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        run: flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-      # Install runtime
-      - name: Install SDK & Platform
+      # Install runtime, SDK, and Electron BaseApp
+      - name: Install Flatpak dependencies
         run: |
           flatpak install -y --user flathub org.freedesktop.Sdk//25.08
           flatpak install -y --user flathub org.freedesktop.Platform//25.08
+          flatpak install -y --user flathub org.electronjs.Electron2.BaseApp//25.08
 
       # Build Flatpak
-      - name: Build
+      - name: Build Flatpak
         run: |
           flatpak-builder \
-            --repo=repo \
+            --user \
+            --install-deps-from=flathub \
             --force-clean \
             --disable-rofiles-fuse \
             build-dir \
             flatpak/com.tradingview.tradingview.yaml
-
           ostree --repo=repo summary -u
           du -sh build-dir/files
 
