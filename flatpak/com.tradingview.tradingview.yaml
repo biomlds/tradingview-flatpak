@@ -9,7 +9,7 @@ separate-locales: false
 command: tradingview
 
 # Prevent CI failure due to missing appstream-compose
-# appstream-compose: false
+appstream-compose: false
 
 finish-args:
   - --share=ipc
