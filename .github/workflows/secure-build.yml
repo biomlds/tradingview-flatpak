@@ -99,6 +99,7 @@ jobs:
           flatpak build-sign repo --gpg-sign="$FLATPAK_GPG_KEY_ID"
 
       # Publish to gh-pages
+            # Publish to gh-pages
       - name: Publish to gh-pages (via worktree)
         run: |
           set -euxo pipefail
@@ -116,16 +117,24 @@ jobs:
           fi
 
           if [ ! -d "repo" ]; then
-            echo "ERROR: The build 'repo' directory does not exist in the workspace."
+            echo "ERROR: The build 'repo' directory does not exist."
             exit 1
           fi
 
-          # ✅ Protect the worktree’s .git from deletion
+          # Sync Flatpak repo
           rsync -a --delete \
             --exclude '.git' \
             --exclude '.git/**' \
             --exclude '.git*' \
             repo/ "$PUBLISH_DIR"/
+
+          # ✅ Copy flatpakrepo file to gh-pages root
+          if [ -f "tradingview.flatpakrepo" ]; then
+            cp tradingview.flatpakrepo "$PUBLISH_DIR"/
+          else
+            echo "ERROR: tradingview.flatpakrepo not found in main branch root."
+            exit 1
+          fi
 
           touch "$PUBLISH_DIR"/.nojekyll
 
@@ -135,14 +144,7 @@ jobs:
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Publish TradingView repo ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
 
-          echo "Warning: Pushing changes with force. Ensure this is intentional as it may overwrite remote changes."
           git push --force origin gh-pages
 
-          # ✅ Safely remove the worktree only if its .git metadata is present
           cd "$GITHUB_WORKSPACE"
-          if [ -e "$PUBLISH_DIR/.git" ]; then
-            git worktree remove -f "$PUBLISH_DIR"
-          else
-            echo "Worktree metadata missing; skipping removal (runner is ephemeral anyway)."
-            rm -rf "$PUBLISH_DIR" || true
-          fi
+          git worktree remove -f "$PUBLISH_DIR" || true
