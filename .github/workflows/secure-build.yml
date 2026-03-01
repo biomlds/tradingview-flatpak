@@ -76,15 +76,15 @@ jobs:
       # Build Flatpak
       - name: Build Flatpak
         run: |
+          mkdir -p repo
           flatpak-builder \
             --user \
             --install-deps-from=flathub \
             --force-clean \
             --disable-rofiles-fuse \
+            --repo=repo \
             build-dir \
             flatpak/com.tradingview.tradingview.yaml
-          ostree --repo=repo summary -u
-          du -sh build-dir/files
 
       # Import signing key
       - name: Import GPG key
