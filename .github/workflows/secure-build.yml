@@ -99,24 +99,50 @@ jobs:
           flatpak build-sign repo --gpg-sign="$FLATPAK_GPG_KEY_ID"
 
       # Publish to gh-pages
-      - name: Publish
+      - name: Publish to gh-pages (via worktree)
         run: |
           set -euxo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git fetch origin
 
           PUBLISH_DIR="_site"
           rm -rf "$PUBLISH_DIR"
 
           if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-            git worktree add -B gh-pages "$PUBLISH_DIR" origin/gh-pages
+            git worktree add --track -B gh-pages "$PUBLISH_DIR" origin/gh-pages
           else
             git worktree add -B gh-pages "$PUBLISH_DIR"
+            (cd "$PUBLISH_DIR" && rm -rf ./* .gitignore 2>/dev/null || true)
           fi
 
-          rsync -a --delete --exclude='.git*' repo/ "$PUBLISH_DIR"/
+          if [ ! -d "repo" ]; then
+            echo "ERROR: The build 'repo' directory does not exist in the workspace."
+            exit 1
+          fi
+
+          # ✅ Protect the worktree’s .git from deletion
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude '.git/**' \
+            --exclude '.git*' \
+            repo/ "$PUBLISH_DIR"/
+
           touch "$PUBLISH_DIR"/.nojekyll
 
           cd "$PUBLISH_DIR"
           git add -A
-          git commit -m "Publish TradingView $(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Publish TradingView repo ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%M:%SZ))" || echo "No changes to commit"
+
+          echo "Warning: Pushing changes with force. Ensure this is intentional as it may overwrite remote changes."
           git push --force origin gh-pages
+
+          # ✅ Safely remove the worktree only if its .git metadata is present
+          cd "$GITHUB_WORKSPACE"
+          if [ -e "$PUBLISH_DIR/.git" ]; then
+            git worktree remove -f "$PUBLISH_DIR"
+          else
+            echo "Worktree metadata missing; skipping removal (runner is ephemeral anyway)."
+            rm -rf "$PUBLISH_DIR" || true
+          fi
