@@ -187,12 +187,13 @@ jobs:
           # Expect armored private key in secret FLATPAK_GPG_KEY
           printf '%s' "${{ secrets.FLATPAK_GPG_KEY }}" | gpg --batch --import
 
-      - name: Sign repo
+      - name: Update & Sign repo
         if: ${{ env.FLATPAK_GPG_KEY_ID != '' }}
         run: |
           set -euxo pipefail
-          flatpak build-sign repo --gpg-sign="${{ secrets.FLATPAK_GPG_KEY_ID }}"
-
+          flatpak build-update-repo repo \
+            --generate-static-deltas \
+            --gpg-sign="${{ secrets.FLATPAK_GPG_KEY_ID }}"
       # -----------------------------------------
       # 10. Publish to gh-pages (worktree, idempotent)
       # -----------------------------------------
