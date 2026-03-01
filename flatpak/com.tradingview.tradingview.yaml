@@ -5,8 +5,8 @@ sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
 base-version: "25.08"
 
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.appstream-glib
+# sdk-extensions:
+#   - org.freedesktop.Sdk.Extension.appstream-glib
 
 command: tradingview
 
