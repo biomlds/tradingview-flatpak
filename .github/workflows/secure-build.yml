@@ -93,10 +93,13 @@ jobs:
           printf '%s' "$FLATPAK_GPG_KEY" | gpg --batch --import
 
       # Sign repo
-      - name: Sign repo
-        if: env.FLATPAK_GPG_KEY_ID != ''
+      - name: Update & Sign repo
+        if: ${{ env.FLATPAK_GPG_KEY_ID != '' }}
         run: |
-          flatpak build-sign repo --gpg-sign="$FLATPAK_GPG_KEY_ID"
+          set -euxo pipefail
+          flatpak build-update-repo repo \
+            --generate-static-deltas \
+            --gpg-sign="${{ secrets.FLATPAK_GPG_KEY_ID }}"
 
       # Publish to gh-pages
             # Publish to gh-pages
