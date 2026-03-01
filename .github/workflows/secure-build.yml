@@ -87,7 +87,6 @@ jobs:
             --repo=repo \
             --force-clean \
             --disable-rofiles-fuse \
-            --no-appstream \
             build-dir \
             flatpak/com.tradingview.tradingview.yaml
 
