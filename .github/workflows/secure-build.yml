@@ -64,8 +64,8 @@ jobs:
 
       # Add Flathub
       - name: Add Flathub
-        run: flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-
+        run: flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+            
       # Install runtime, SDK, and Electron BaseApp
       - name: Install Flatpak dependencies
         run: |
