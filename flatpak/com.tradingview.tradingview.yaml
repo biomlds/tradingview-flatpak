@@ -24,19 +24,24 @@ modules:
   - name: tradingview
     buildsystem: simple
     build-commands:
+      # Run the extraction script first
+      - ./apply_extra
       # Copy the wrapper to /app/bin
       - install -Dm755 tradingview.sh $FLATPAK_DEST/bin/tradingview
       # Copy all binaries and support files into /app/tradingview
       - mkdir -p $FLATPAK_DEST/tradingview
-      - cp -a opt/TradingView/* $FLATPAK_DEST/tradingview/
+      - cp -a tradingview/* $FLATPAK_DEST/tradingview/
+      # Install metadata
       - install -Dm644 com.tradingview.tradingview.metainfo.xml -t $FLATPAK_DEST/share/metainfo
       - install -Dm644 com.tradingview.tradingview.png -t $FLATPAK_DEST/share/icons/hicolor/256x256/apps
       - install -Dm644 com.tradingview.tradingview.desktop -t $FLATPAK_DEST/share/applications
+
     sources:
       - type: script
         commands:
           # Extract official .deb downloaded by CI
           - bsdtar -O -xf tradingview.deb data.* | bsdtar --no-same-owner -xf -
+          - mv opt/TradingView tradingview
           - rm -rf tradingview.deb etc usr opt
         dest-filename: apply_extra
 
