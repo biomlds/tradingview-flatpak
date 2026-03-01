@@ -1,46 +1,46 @@
-id: com.tradingview.tradingview
+app-id: com.tradingview.tradingview
 runtime: org.freedesktop.Platform
-runtime-version: '25.08'
+runtime-version: "25.08"
 sdk: org.freedesktop.Sdk
-
 base: org.electronjs.Electron2.BaseApp
-base-version: '25.08'
+base-version: "25.08"
+
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.appstream-glib
 
 command: tradingview
-separate-locales: false
 
 finish-args:
-  - --share=ipc
   - --share=network
-  - --socket=pulseaudio
-  - --device=all
-  - --filesystem=xdg-download:ro
+  - --share=ipc
+  - --socket=x11
   - --socket=wayland
-  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Notifications
+  - --env=ELECTRON_TRASH=gio
 
 modules:
   - name: tradingview
     buildsystem: simple
-
     build-commands:
       - ar x tradingview.deb
       - bsdtar -xf data.tar.xz
-      - mv opt/TradingView $FLATPAK_DEST/tradingview
+      - mv opt/TradingView $FLATPAK_DEST/extra/tradingview
       - rm -rf control.tar.* data.tar.* debian-binary opt
-
       - install -Dm755 tradingview.sh $FLATPAK_DEST/bin/tradingview
       - install -Dm644 com.tradingview.tradingview.metainfo.xml $FLATPAK_DEST/share/metainfo/com.tradingview.tradingview.metainfo.xml
       - install -Dm644 com.tradingview.tradingview.png $FLATPAK_DEST/share/icons/hicolor/256x256/apps/com.tradingview.tradingview.png
       - install -Dm644 com.tradingview.tradingview.desktop $FLATPAK_DEST/share/applications/com.tradingview.tradingview.desktop
-
     sources:
       - type: file
         path: tradingview.deb
       - type: file
         path: tradingview.sh
       - type: file
+        path: com.tradingview.tradingview.desktop
+      - type: file
         path: com.tradingview.tradingview.metainfo.xml
       - type: file
         path: com.tradingview.tradingview.png
-      - type: file
-        path: com.tradingview.tradingview.desktop
