@@ -54,4 +54,5 @@ The last built version is stored in the `VERSION` file.
 Add the Flatpak remote:
 
 ```bash
-flatpak remote-add mytv https://USERNAME.github.io/tradingview-flatpak
+flatpak remote-add mytv https://biomlds.github.io/tradingview-flatpak
+```
